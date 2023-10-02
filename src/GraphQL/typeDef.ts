@@ -62,6 +62,11 @@ const typeDefs = gql`
     message:String
   }
 
+  type ResetPasswordResponse {
+    status: Int!
+    message: String!
+  }
+
   type Query {
     user(id: ID!): User
     users: [User!]!
@@ -82,6 +87,11 @@ const typeDefs = gql`
     createPost(title: String!, content: String!): createPostReq
     createComment(text: String!, postId: ID!): createCommentReq
     createReply(text: String!, commentId: ID!): createReplyReq
+
+    deletePost(id: ID!): String
+    deleteComment(id: ID!): String
+    deleteReply(id: ID!): String
+    forgetPassword(email: String!): ResetPasswordResponse!
   }
 `;
 
