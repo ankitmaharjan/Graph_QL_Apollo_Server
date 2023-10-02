@@ -241,7 +241,7 @@ const resolvers = {
         if (!PASSWORD_REGEX.test(password)) {
           throw new UserInputError('Invalid password');
         }
-        // Hash the password before storing it in the database
+        // Hash/Encrypting the password the password before storing it in the database
         const hashedPassword = await bcrypt.hash(password, saltRounds);
         // Check if a user with the same username or email already exists
         const existingUser = await User.findOne({
