@@ -214,7 +214,10 @@ const resolvers = {
     signup: async (parent: any, args: SignupInterface): Promise<any> => {
       try {
         const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,12}$/; // Allows letters, numbers, and underscores, 3 to 12 characters
-        const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; // Basic email validation
+       // Define the regular expressions
+        const EMAIL_REGEX1 = /@gmail\.com/;
+        //const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
         const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{8,15}$/; // Requires at least one lowercase letter, one uppercase letter, one digit, and allows special characters, 8 to 15 characters
         const { username, email, password } = args;
         // Validate if username, email, and password are provided
@@ -234,9 +237,10 @@ const resolvers = {
           throw new UserInputError('Invalid username');
         }
         // Validate email
-        if (!EMAIL_REGEX.test(email)) {
-          throw new UserInputError('Invalid email address');
-        }
+          // if (!EMAIL_REGEX.test(email) && !EMAIL_REGEX1.test(email)) {
+            if (!EMAIL_REGEX1.test(email)) {
+          throw new UserInputError('Invalid email address');  
+          }
         // Validate password
         if (!PASSWORD_REGEX.test(password)) {
           throw new UserInputError('Invalid password');
