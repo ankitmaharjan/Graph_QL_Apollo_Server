@@ -62,11 +62,6 @@ const typeDefs = gql`
     message:String
   }
 
-  type ResetPasswordResponse {
-    success: Boolean!
-    message: String!
-  }
-
   type Query {
     user(id: ID!): User
     users: [User!]!
@@ -76,6 +71,9 @@ const typeDefs = gql`
     comments: [Comment!]!
     reply(id: ID!): Reply
     replies: [Reply!]!
+  }
+  type RequestTokenResponse {
+    accessToken: String
   }
 
   type Mutation {
@@ -91,7 +89,8 @@ const typeDefs = gql`
     deletePost(id: ID!): String
     deleteComment(id: ID!): String
     deleteReply(id: ID!): String
-    resetPassword(email: String!): ResetPasswordResponse!
+    requestPasswordReset(email: String!): String
+    resetPassword(token: String!, newPassword: String!): RequestTokenResponse
     
   }
 `;

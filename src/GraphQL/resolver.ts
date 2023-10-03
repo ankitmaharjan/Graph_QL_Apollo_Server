@@ -1,8 +1,7 @@
 // src/GraphQL/resolver.ts
 import { AuthenticationError, UserInputError } from 'apollo-server-express';
-import { google, Auth } from 'googleapis';
-import nodemailer, { Transporter } from 'nodemailer';
 import jwt from 'jsonwebtoken';
+import smtpTransport from '../helpers/emailconfig';
 import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -11,15 +10,16 @@ import User from '../models/user';
 import Post from '../models/post';
 import Comment from '../models/comment';
 import Reply from '../models/reply';
-import ResetToken from '../models/resettoken';
+//import ResetToken from '../models/resettoken';
 import { Op } from 'sequelize'; // import the Op object from Sequelize
 import { LoginInterface, SignupInterface, createCommentInterface, createPostInterface, createReplyInterface, 
-  deleteInterface, updatePasswordInterface, updateUserInterface, ResetPasswordInterface } from '../interfaces';
+  deleteInterface, updatePasswordInterface, updateUserInterface } from '../interfaces';
+
 
 
 const saltRounds: number = 10; // Explicitly declare the type
 const secret: string | undefined = process.env.SECRET_KEY;
-// const reset_token_secret: string | undefined = process.env.RESET_TOKEN_SECRET;
+
 
 interface UserPayload {
   id: string;
@@ -50,96 +50,6 @@ function generateRefreshToken(user: any): string {
   });
   return refreshToken;
 }
-
-// const transporter = nodemailer.createTransport({
-//   // Configure your email transport options here
-//   service: 'Gmail', // Use your email service provider
-//   auth: {
-//     user: process.env.EMAIL, 
-//     pass: process.env.GMAIL_PASSWORD, 
-//   },
-// });
-
-// const sendPasswordResetEmail = async (toEmail:string, resetLink:string) => {
-//   try {
-//     // Send email
-//     const info = await transporter.sendMail({
-//       from: process.env.EMAIL, // Sender's email address
-//       to: process.env.EMAIL, // Recipient's email address
-//       subject: 'Password Reset', // Email subject
-//       text: `Click the following link to reset your password: ${resetLink}`, // Email body
-//     });
-
-//     console.log('Password reset email sent:', info.messageId);
-//   } catch (error) {
-//     console.error('Error sending password reset email:', error);
-//     throw error;
-//   }
-// };
-
-// Create an OAuth2 client with your credentials
-const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_REDIRECT_URI
-);
-
-// Set the desired Gmail API scope (read and send emails)
-const SCOPES: string[] = ['https://www.googleapis.com/auth/gmail.readonly', 'https://www.googleapis.com/auth/gmail.send'];
-
-// Generate an OAuth2 URL for user consent
-const authUrl: string = oauth2Client.generateAuthUrl({
-  access_type: 'offline',
-  scope: SCOPES,
-});
-
-// Handle the OAuth2 callback and get an access token
-const getAccessToken = async (code: string): Promise<any> => {
-  try {
-    const { tokens } = await oauth2Client.getToken(code);
-    return tokens.access_token;
-  } catch (error) {
-    console.error('Error getting access token:', error);
-    throw error;
-  }
-};
-
-// Send an Email
-const sendPasswordResetEmail = async (toEmail: string, resetLink: string): Promise<void> => {
-  try {
-    // Get an access token using OAuth2 (you need to implement this)
-    const accessToken = await getAccessToken(process.env.RESET_TOKEN_SECRET as string); //Pass authorization code
-
-    // Create a Nodemailer transporter using Gmail's SMTP server
-    const transporter: Transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        type: 'OAuth2',
-        user: process.env.EMAIL, // Your Gmail email address
-        clientId: process.env.GOOGLE_CLIENT_ID,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        //refreshToken: process.env.GOOGLE_REFRESH_TOKEN, // Optional if you want to refresh tokens
-        accessToken,
-      },
-    });
-
-    // Email content
-    const mailOptions = {
-      from: process.env.EMAIL, // Sender's email address
-      to: process.env.EMAIL, // Recipient's email address
-      subject: 'Password Reset', // Email subject
-      text: `Click the following link to reset your password: ${resetLink}`, // Email body
-    };
-
-    // Send the email
-    await transporter.sendMail(mailOptions);
-
-    console.log('Password reset email sent successfully');
-  } catch (error) {
-    console.error('Error sending password reset email:', error);
-    throw error;
-  }
-};
 
 const resolvers = {
   Query: {
@@ -565,92 +475,64 @@ const resolvers = {
         throw new UserInputError('Error during reply deletion', { error });
       }
     },
-    resetPassword: async (parent: any, args: ResetPasswordInterface): Promise<any> => {
+    requestPasswordReset: async (_: any, { email }: { email: string }) => {
       try {
-        const { email } = args;
-
-        // Check if the user with the provided email exists
         const user = await User.findOne({ where: { email } });
         if (!user) {
-          return {
-            success: false,
-            message: 'User with this email does not exist.',
-          };
+          throw new Error('User not found');
         }
 
-        // Generate a unique token using JWT
-        const token = jwt.sign({ userId: user.id }, secret as string, { expiresIn: '1h' });
-
-        // Store the token in the database with a reference to the user
-        await ResetToken.create({
-          userId: user.id,
-          token,
-          expirationDate: new Date(new Date().getTime() + 3600000), // 1 hour from now
+        // Generate a unique reset token
+        const resetToken = jwt.sign({ email }, secret as string, {
+          expiresIn: '1h', // Set an appropriate expiration time
         });
 
-        // Send an email to the user with a link to reset their password
-        const resetLink = `https://your-website.com/reset-password?token=${token}`;
-        await sendPasswordResetEmail(email, resetLink);
+        // Send an email with the reset token link
+        const mailOptions = {
+          from: process.env.EMAIL,
+          to: process.env.EMAIL,
+          subject: 'Password Reset',
+          text: `Click on the following link to reset your password: http://yourapp.com/reset-password?token=${resetToken}`,
+        };
 
-        return {
-          success: true,
-          message: 'Password reset email sent successfully.',
-        };
+        await smtpTransport.sendMail(mailOptions);
+
+        return 'Password reset email sent successfully';
       } catch (error) {
-        return {
-          success: false,
-          message: 'Error resetting password.',
-        };
+        throw new Error('Password reset email could not be sent');
       }
     },
+    resetPassword: async (
+      _: any,
+      { token, newPassword }: { token: string; newPassword: string }
+    ) => {
+      try {
+        const decodedToken = jwt.verify(token, secret as string) as { email: string };
 
-    // updatePassword: async (parent: any, args: ResetPasswordInterface): Promise<any> => {
-    //   try {
-    //     const { token, newPassword } = args;
+        const user = await User.findOne({ where: { email: decodedToken.email } });
+        if (!user) {
+          throw new Error('User not found');
+        }
 
-    //     // Verify the token and extract the user ID using JWT
-    //     const decodedToken:any = jwt.verify(token, secret as string);
-    //     if (!decodedToken || !decodedToken.userId) {
-    //       return {
-    //         success: false,
-    //         message: 'Invalid or expired reset token.',
-    //       };
-    //     }
+        // Hash the new password and update it in the database
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        user.password = hashedPassword;
+        await user.save();
 
-    //     const userId = decodedToken.userId;
+         // Generate a new access token (replace with your actual logic)
+    const newAccessToken = jwt.sign({ userId: user.id, email: user.email }, process.env.REFRESH_TOKEN as string, {
+      expiresIn: '7h', // Set an appropriate expiration time
+    });
 
-    //     // Find the user associated with the token
-    //     const user = await User.findByPk(userId);
-
-    //     if (!user) {
-    //       return {
-    //         success: false,
-    //         message: 'User not found.',
-    //       };
-    //     }
-
-    //     // Hash the new password
-    //     const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    //     // Update the user's password
-    //     user.password = hashedPassword;
-    //     await user.save();
-
-    //     // Delete the reset token
-    //     await ResetToken.destroy({ where: { userId } });
-
-    //     return {
-    //       success: true,
-    //       message: 'Password updated successfully.',
-    //     };
-    //   } catch (error) {
-    //     return {
-    //       success: false,
-    //       message: 'Error updating password.',
-    //     };
-    //   }
-    // },
+    return {
+      accessToken: newAccessToken,
+    };
+      } catch (error) {
+        throw new AuthenticationError('Password reset failed');
+      }
+    },
   },
+  
 };
 
 export default resolvers;
