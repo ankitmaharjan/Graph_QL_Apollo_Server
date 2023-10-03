@@ -21,10 +21,10 @@ const app = express();
 // Middleware to verify JWT token
 app.use((req:any, _, next) => {
   const token = req.headers.authorization;
-  const secret: any = process.env.SECRET_KEY;
+  const secret: string | undefined = process.env.SECRET_KEY;
   if (token) {
     try {
-      const user = jwt.verify(token, secret); // Verify and decode the token
+      const user = jwt.verify(token, secret as string); // Verify and decode the token
       req.user = user; // Attach the decoded user to the request object
     } catch (error) {
       throw new AuthenticationError('Invalid token');

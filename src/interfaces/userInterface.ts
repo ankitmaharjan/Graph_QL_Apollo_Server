@@ -38,3 +38,11 @@ export interface createReplyInterface{
     text: string; 
     commentId: string;
 }
+export interface forgetPasswordInterface{
+    email: string;
+}
+export interface ResetPasswordInterface{
+    email: string;
+    token: string;
+    newPassword: string;
+}

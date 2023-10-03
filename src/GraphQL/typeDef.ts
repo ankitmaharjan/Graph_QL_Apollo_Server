@@ -63,7 +63,7 @@ const typeDefs = gql`
   }
 
   type ResetPasswordResponse {
-    status: Int!
+    success: Boolean!
     message: String!
   }
 
@@ -91,7 +91,8 @@ const typeDefs = gql`
     deletePost(id: ID!): String
     deleteComment(id: ID!): String
     deleteReply(id: ID!): String
-    forgetPassword(email: String!): ResetPasswordResponse!
+    resetPassword(email: String!): ResetPasswordResponse!
+    
   }
 `;
 
