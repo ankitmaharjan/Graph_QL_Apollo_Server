@@ -3,8 +3,8 @@ import express from 'express';
 import { ApolloServer, AuthenticationError } from 'apollo-server-express';
 // import  {startStandaloneServer} from "apollo-server";
 import jwt  from "jsonwebtoken";
-import typeDefs from './GraphQL/typeDef';
-import resolvers from './GraphQL/resolver';
+import typeDefs from './GraphQL/TypeDef/index';
+import {userResolver,postResolver,commentResolver,replyResolver} from './GraphQL/Resolvers/index';
 //import  {context}  from "./helpers/helper";
 import dotenv from 'dotenv';
 dotenv.config();
@@ -20,7 +20,7 @@ declare global {
 const app = express();
 // Middleware to verify JWT token
 app.use((req:any, _, next) => {
-  const token = req.headers.authorization;
+  const token:string | undefined = req.headers.authorization;
   const secret: string | undefined = process.env.SECRET_KEY;
   if (token) {
     try {
@@ -37,7 +37,12 @@ app.use((req:any, _, next) => {
 async function startApolloServer() {
   const server:any = new ApolloServer({
     typeDefs,
-    resolvers,
+    resolvers:[
+      userResolver,
+      postResolver,
+      commentResolver,
+      replyResolver
+    ],
     //context:context
     context: ({ req }) => {
       return { user: req.user }; // Make the user object available in the context

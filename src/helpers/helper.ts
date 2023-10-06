@@ -4,11 +4,11 @@ import dotenv from 'dotenv';
 dotenv.config();
 export const context =  ({ req }: { req: any }) => {
     const token: any = req.headers.Authorization || '';
-    const secret: any = process.env.SECRET_KEY;
+    const secret: string | undefined = process.env.SECRET_KEY;
 
     try {
       if (token) {
-        const user:any = jwt.verify(token, secret); // Verify and decode the token
+        const user:any = jwt.verify(token, secret as string); // Verify and decode the token
         return { user };
       }
     } catch (error) {
